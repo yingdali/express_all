@@ -4,7 +4,6 @@ const bodyParser = require('body-parser');
 const db = require('../db');
 const router = express.Router();
 router.use(bodyParser.json());
-const error5='数据格式不对'
 //带分页查询
 function getUsersByPage(page, limit, callback) {
     const offset = (page - 1) * limit;
@@ -18,7 +17,7 @@ function getUsersByPage(page, limit, callback) {
 
         //使用占位符可以避免在 SQL 查询中直接拼接变量所带来的安全隐患和 SQL 注入攻击风险，同时还能提高查询性能和可读性。此外，使用占位符还可以避免在查询中出现语法错误或数据类型不匹配等问题。
         if (error) return callback(error);
-        console.log('111',results);
+        // console.log('111', results);
         //查询总页数total
         const query = "SELECT COUNT(*) AS total FROM user";
         db.query(query, (error, countResults) => {
@@ -72,7 +71,7 @@ router.get('/user/:name', (req, res) => {
 });
 
 // 添加一个用户
-function addUser(name, address, dob,callback) {
+function addUser(name, address, dob, callback) {
     db.query('INSERT INTO user SET ?', {
         name,
         address,
@@ -85,20 +84,24 @@ router.post('/user', (req, res) => {
         address,
         dob
     } = req.body.params;
+    console.log('add', name, address, dob);
     if (!name || !address || !dob) {
         return res.status(400).json({
             error: 'Name, address,dob are required'
         });
     }
-    addUser(name, address,dob,(error, results) => {
+    addUser(name, address, dob, (error, results) => {
         if (error) {
-            // console.log('500erro'+error);
+            console.log('500erro' + error);
             return res.status(500).json({
-                error5
-                // error
+                message: error,
+                code: 1
             });
         }
-        res.send('添加成功');
+        res.status(200).json({
+            message: '添加成功',
+            code: 0
+        });
     });
 });
 
@@ -116,24 +119,35 @@ router.put('/user/:id', (req, res) => {
         name,
         address,
         dob
-    } = req.body;
+    } = req.body.params;
+    if (!name || !address || !dob) {
+        return res.status(400).json({
+            error: 'Name, address,dob are required'
+        });
+    }
     updateUserById(id, name, address, dob, (error, results) => {
         if (error) {
             return res.status(500).json({
-                error
+                message: error,
+                code: 1
             });
         }
-        if (results.affectedRows === 0) {
-            return res.status(404).json({
-                error: 'Not found'
-            });
-        }
+        // if (results.affectedRows === 0) {
+        //     return res.status(404).json({
+        //         error: 'Not found'
+        //     });
+        // }
         const user = {
             id,
             address,
             dob
         };
-        res.json(user);
+        res.status(200).json({
+            message: '修改成功',
+            code: 0,
+            data: user
+        });
+
     });
 });
 
@@ -145,8 +159,10 @@ router.delete('/user/:id', (req, res) => {
     const id = req.params.id;
     deleteUserById(id, (error, results) => {
         if (error) {
+            console.log('delete', error);
             return res.status(500).json({
-                error
+                message: '删除失败',
+                code: 1
             });
         }
         if (results.affectedRows === 0) {
@@ -154,7 +170,11 @@ router.delete('/user/:id', (req, res) => {
                 error: 'Not found'
             });
         }
-        res.sendStatus(204);
+        res.status(200).json({
+            message: '删除成功',
+            code: 0
+        });
+        // res.sendStatus(204);
     });
 });
 

@@ -10,10 +10,9 @@
     />
     <el-button type="primary" @click="searchName()">搜索</el-button>
     <el-button type="primary" @click="reSearch()">重置</el-button>
-    <el-button type="primary" plain @click="dialogFormVisible = true"
-      >添加</el-button
-    >
+    <el-button type="primary" plain @click="add()">添加</el-button>
     <el-table :data="tableData" style="width: 100%" v-loading="loading">
+      <el-table-column type="index" width="50"> </el-table-column>
       <el-table-column prop="dob" label="日期" width="180"> </el-table-column>
       <el-table-column prop="name" label="姓名" width="180"> </el-table-column>
       <el-table-column prop="address" label="地址"> </el-table-column>
@@ -32,7 +31,6 @@
       </el-table-column>
     </el-table>
     <div class="block">
-      <!-- :page-sizes="[100, 200, 300, 400]" -->
       <el-pagination
         @size-change="handleSizeChange"
         @current-change="handleCurrentChange"
@@ -44,8 +42,8 @@
       >
       </el-pagination>
     </div>
-    <!-- 新增弹窗 -->
-    <el-dialog title="新增" :visible.sync="dialogFormVisible">
+
+    <el-dialog :title="title" :visible.sync="dialogFormVisible">
       <el-form :model="form">
         <el-form-item label="日期" :label-width="formLabelWidth">
           <el-date-picker
@@ -64,32 +62,8 @@
         </el-form-item>
       </el-form>
       <div slot="footer" class="dialog-footer">
-        <el-button @click="dialogFormVisible = false">取 消</el-button>
+        <el-button @click="close()">取 消</el-button>
         <el-button type="primary" @click="ok()">确 定</el-button>
-      </div>
-    </el-dialog>
-    <!-- 修改弹窗 -->
-    <el-dialog title="新增" :visible.sync="dialogFormVisibleFix">
-      <el-form :model="formFix">
-        <el-form-item label="日期" :label-width="formLabelWidth">
-          <el-date-picker
-            value-format="yyyy-MM-dd "
-            v-model="formFix.dob"
-            type="date"
-            placeholder="选择日期"
-          >
-          </el-date-picker>
-        </el-form-item>
-        <el-form-item label="姓名" :label-width="formLabelWidth">
-          <el-input v-model="formFix.name" autocomplete="off"></el-input>
-        </el-form-item>
-        <el-form-item label="地址" :label-width="formLabelWidth">
-          <el-input v-model="formFix.address" autocomplete="off"></el-input>
-        </el-form-item>
-      </el-form>
-      <div slot="footer" class="dialog-footer">
-        <el-button @click="dialogFormVisibleFIx = false">取 消</el-button>
-        <el-button type="primary" @click="okFIx()">确 定</el-button>
       </div>
     </el-dialog>
   </div>
@@ -105,40 +79,50 @@ export default {
       pageSize: 10,
       total: 0,
       loading: false,
-      dialogFlag: false, //新增和编辑共用一个弹窗 false 新增 编辑 true
       search: "",
       form: {
         name: "",
         address: "",
         dob: "",
-        age: "",
       },
-      formnow: {},
       dialogFormVisible: false,
       formLabelWidth: "120px",
+      title: "",
     };
   },
-  // `http://127.0.0.1:3018/api/user?name=${this.search + ''}`
   methods: {
-    ok() {
+    add() {
+      this.title = "新增";
+      this.form = {};
+      this.dialogFormVisible = true;
+    },
+    close() {
       this.dialogFormVisible = false;
-      if (!this.dialogFlag) {
+    },
+    ok() {
+      if (this.title == "新增") {
+        // console.log("新增", this.form);
         this.$axios
           .post("api/user", {
             params: this.form,
           })
           .then(({ data: res }) => {
-            this.getTable();
+            if (res.code == 0) {
+              this.dialogFormVisible = false;
+              this.getTable();
+            }
           });
       } else {
-        console.log("00", this.form.id);
-        retrun;
+        console.log("修改", this.form.id);
         this.$axios
           .put(`api/user/${this.form.id}`, {
             params: this.form,
           })
           .then(({ data: res }) => {
-            this.getTable();
+            if (res.code == 0) {
+              this.dialogFormVisible = false;
+              this.getTable();
+            }
           });
       }
     },
@@ -192,12 +176,11 @@ export default {
         });
     },
     handleEdit(index, row) {
+      this.title = "编辑";
       this.dialogFormVisible = true;
-      let rownow = row;
-      this.form = row;
-      this.form = rownow;
-      this.dialogFlag = true;
-      console.log("1", row);
+      //使用深拷贝 否则编辑内容会同步到table中
+      this.form = { ...row };
+      console.log("1", this.form);
     },
     handleDelete(index, row) {
       console.log("2", index, this.form);
@@ -205,19 +188,14 @@ export default {
         confirmButtonText: "确定",
         cancelButtonText: "取消",
         type: "warning",
-      })
-        .then(() => {
-          this.$axios.delete(`api/user/${row.id}`, {}).then(({ data: res }) => {
+      }).then(() => {
+        this.$axios.delete(`api/user/${row.id}`, {}).then(({ data: res }) => {
+          if (res.code == 0) {
             this.$message.success("删除成功");
             this.getTable();
-          });
-        })
-        .catch(() => {
-          this.$message({
-            type: "info",
-            message: "已取消删除",
-          });
+          }
         });
+      });
     },
   },
   mounted() {
